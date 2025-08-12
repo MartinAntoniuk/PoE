@@ -21,7 +21,7 @@ class App(tk.Tk):
         ttk.Entry(input_frame, textvariable=self.desired_prefixes).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
         ttk.Label(input_frame, text="Desired Suffixes:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
-        self.desired_suffixes = tk.IntVar(value=0)
+        self.desired_suffixes = tk.IntVar(value=1)
         ttk.Entry(input_frame, textvariable=self.desired_suffixes).grid(row=0, column=3, padx=5, pady=5, sticky="ew")
 
         calculate_button = ttk.Button(self, text="Calculate Best Options", command=self.calculate)
@@ -32,6 +32,9 @@ class App(tk.Tk):
 
         self.results_text = tk.Text(results_frame, height=20, width=90, wrap="word")
         self.results_text.pack(padx=5, pady=5, fill="both", expand=True)
+
+        # Configure a "bold" tag
+        self.results_text.tag_configure("bold", font="TkDefaultFont 9 bold")
 
         scrollbar = ttk.Scrollbar(self.results_text, command=self.results_text.yview)
         scrollbar.pack(side="right", fill="y")
@@ -51,7 +54,6 @@ class App(tk.Tk):
         self.update_idletasks()
 
         try:
-            # This call will be updated in the next step to match the new signature
             plans = calculate_recombination_outcomes(
                 desired_prefixes, desired_suffixes
             )
@@ -62,10 +64,11 @@ class App(tk.Tk):
                 return
 
             for i, plan in enumerate(plans):
-                self.results_text.insert(tk.END, f"--- Plan {i+1}: {plan['name']} ---\n")
+                # Insert title with the "bold" tag
+                self.results_text.insert(tk.END, f"--- Plan {i+1}: {plan['name']} ---\n", "bold")
                 self.results_text.insert(tk.END, f"Total Expected Recombinations: {plan['cost']:.1f}\n")
                 self.results_text.insert(tk.END, f"Total Exclusive Mods Needed: {plan['exclusive_cost']}\n\n")
-                self.results_text.insert(tk.END, f"**Full Plan:**\n{plan['explanation']}\n\n")
+                self.results_text.insert(tk.END, f"{plan['explanation']}\n\n")
 
         except Exception as e:
             self.results_text.delete("1.0", tk.END)
