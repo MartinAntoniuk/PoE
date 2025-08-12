@@ -27,13 +27,12 @@ class App(tk.Tk):
         calculate_button = ttk.Button(self, text="Calculate Best Options", command=self.calculate)
         calculate_button.pack(pady=10)
 
-        results_frame = ttk.LabelFrame(self, text="Top 5 Crafting Plans (sorted by lowest recombination cost)")
+        results_frame = ttk.LabelFrame(self, text="Top 5 Crafting Plans (sorted by lowest base item cost)")
         results_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         self.results_text = tk.Text(results_frame, height=20, width=90, wrap="word")
         self.results_text.pack(padx=5, pady=5, fill="both", expand=True)
 
-        # Configure a "bold" tag
         self.results_text.tag_configure("bold", font="TkDefaultFont 9 bold")
 
         scrollbar = ttk.Scrollbar(self.results_text, command=self.results_text.yview)
@@ -64,11 +63,10 @@ class App(tk.Tk):
                 return
 
             for i, plan in enumerate(plans):
-                # Insert title with the "bold" tag
                 self.results_text.insert(tk.END, f"--- Plan {i+1}: {plan['name']} ---\n", "bold")
-                self.results_text.insert(tk.END, f"Total Expected Recombinations: {plan['cost']:.1f}\n")
+                self.results_text.insert(tk.END, f"Total Base Items Used (est.): {plan['base_item_cost']:.1f}\n")
                 self.results_text.insert(tk.END, f"Total Exclusive Mods Needed: {plan['exclusive_cost']}\n\n")
-                self.results_text.insert(tk.END, f"{plan['explanation']}\n\n")
+                self.results_text.insert(tk.END, f"Method:\n{plan['explanation']}\n\n")
 
         except Exception as e:
             self.results_text.delete("1.0", tk.END)
