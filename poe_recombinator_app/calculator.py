@@ -1,7 +1,5 @@
 import math
-from itertools import product
 
-# Probability table remains the same
 PROBABILITY_TABLE = {
     1: {0: 0.41, 1: 0.59, 2: 0.0, 3: 0.0},
     2: {0: 0.0, 1: 0.67, 2: 0.33, 3: 0.0},
@@ -12,113 +10,87 @@ PROBABILITY_TABLE = {
 }
 
 def get_outcome_distribution(total_affixes):
-    if total_affixes > 6:
-        total_affixes = 6
-    return PROBABILITY_TABLE.get(total_affixes, {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0})
+    if total_affixes > 6: total_affixes = 6
+    return PROBABILITY_TABLE.get(total_affixes, {0:0, 1:0, 2:0, 3:0})
 
-def nCr_exact(n, r):
-    if r < 0 or r > n: return 0
-    return math.factorial(n) // math.factorial(r) // math.factorial(n - r)
-
-def find_best_crafting_options(desired_prefixes, max_prefixes, desired_suffixes, max_suffixes):
-    options = []
-
-    # --- Strategy for 3 Prefixes ---
-    if desired_prefixes <= 3 <= max_prefixes:
-        # Exclusive Mod Strategy
-        explanation_exclusive = (
-            "Strategy: Exclusive Mod Crafting for 3 Prefixes\n\n"
-            "This is the most reliable method. It uses crafted mods to force the outcome.\n\n"
-            "**Step 1: Create Item A (2 desired prefixes)**\n"
-            "   - Combine two magic items with prefixes {A} and {B}. 33% chance for a 2-prefix item {A, B}. Expected attempts: ~3.\n\n"
-            "**Step 2: Get Item B (1 desired prefix)**\n"
-            "   - A magic item with prefix {C}.\n\n"
-            "**Step 3: Prepare for Final Combine**\n"
-            "   - On Item A (2p): Add an exclusive crafted prefix.\n"
-            "   - On Item B (1p): Add 'Multimod' + two exclusive crafted prefixes.\n"
-            "   - Add an exclusive suffix (e.g., Aspect) to one item.\n\n"
-            "**Step 4: The Final Combination**\n"
-            "   - Combine Item A (now 3p) and Item B (now 3p/1s+).\n"
-            "   - Total prefix pool is 6 -> 72% chance of 3 prefixes.\n"
-            "   - The exclusive suffix trick gives a 50% chance to guarantee your 3 prefixes.\n"
-            "   - Final success chance: 0.5 * 0.72 = 36%."
-        )
-        options.append({"chance": 0.36, "explanation": explanation_exclusive, "name": "3-Prefix Exclusive Mod Craft"})
-
-        # Doubled Modifier Strategy
-        explanation_doubled = (
-            "Strategy: Doubled Modifier Crafting for 3 Prefixes\n\n"
-            "This method avoids exclusive mods by 'doubling up' on a common prefix.\n\n"
-            "**Step 1: Create Item A (prefixes A, B)**\n"
-            "   - Combine a magic item with prefix {A} and another with prefix {B}.\n"
-            "   - 33% chance for a 2-prefix item {A, B}. Expected attempts: ~3.\n\n"
-            "**Step 2: Create Item B (prefixes B, C)**\n"
-            "   - Combine a magic item with prefix {B} and another with prefix {C}.\n"
-            "   - 33% chance for a 2-prefix item {B, C}. Expected attempts: ~3.\n\n"
-            "**Step 3: The Final Combination**\n"
-            "   - Combine Item A {A, B} and Item B {B, C}.\n"
-            "   - Total prefix pool is 4: {A, B, B, C}.\n"
-            "   - Chance of a 3-prefix result: 31%.\n"
-            "   - Chance of selecting {A, B, C} from the pool is 50%.\n"
-            "   - Final success chance: 0.31 * 0.50 = 15.5%."
-        )
-        options.append({"chance": 0.155, "explanation": explanation_doubled, "name": "3-Prefix Doubled Modifier Craft"})
-
-        # 2p + 1p Strategy
-        explanation_2p1p = (
-            "Strategy: 2-Prefix + 1-Prefix Combine\n\n"
-            "A simpler, but less effective, method than doubling modifiers.\n\n"
-            "**Step 1: Create Item A (prefixes A, B)**\n"
-            "   - Combine a magic item with prefix {A} and another with prefix {B}.\n"
-            "   - 33% chance for a 2-prefix item {A, B}. Expected attempts: ~3.\n\n"
-            "**Step 2: Get Item B (prefix C)**\n"
-            "   - Get a magic item with only prefix {C}.\n\n"
-            "**Step 3: The Final Combination**\n"
-            "   - Combine Item A {A, B} and Item B {C}.\n"
-            "   - Total prefix pool is 3: {A, B, C}.\n"
-            "   - Chance of a 3-prefix result: 10%.\n"
-            "   - If you get 3 prefixes, they are guaranteed to be {A, B, C}."
-        )
-        options.append({"chance": 0.10, "explanation": explanation_2p1p, "name": "3-Prefix 2p+1p Craft"})
-
-        # Naive Strategy for comparison
-        explanation_simple = (
-            "Strategy: Simple 3p+3p Combine (Low Success)\n\n"
-            "**Step 1: Create two 3-prefix items.** (Very difficult).\n"
-            "**Step 2: Combine them.**\n"
-            "   - Total prefix pool is 6 -> 72% chance of 3 prefixes.\n"
-            "   - Chance of selecting the correct 3 from 6 is 1/nCr(6,3) = 5%.\n"
-            "   - Total chance: 0.72 * 0.05 = 3.6%."
-        )
-        options.append({"chance": 0.036, "explanation": explanation_simple, "name": "3-Prefix Naive Combine"})
-
-
-    # --- Strategy for 2 Prefixes ---
-    if desired_prefixes <= 2 <= max_prefixes:
-        explanation = (
-            "Strategy: Simple Combine for 2 Prefixes\n\n"
-            "**Step 1: Get two 1-prefix items.**\n"
-            "   - Get two magic items, each with one of your desired prefixes.\n\n"
-            "**Step 2: Combine them.**\n"
-            "   - Combine the two 1p/0s items. Total prefix pool is 2.\n"
-            "   - This gives a 33% chance of a 2-prefix result, which are guaranteed to be the ones you want."
-        )
-        options.append({"chance": 0.33, "explanation": explanation, "name": "2-Prefix Simple Combine"})
-
-    # --- Strategy for 1 Prefix ---
-    if desired_prefixes <= 1 <= max_prefixes:
-        explanation = (
-            "Strategy: Use a 1-Prefix Item (No Recombinator Needed)\n\n"
-            "Use Alteration Orbs on a magic item until you hit the prefix you want."
-        )
-        options.append({"chance": 0.99, "explanation": explanation, "name": "1-Prefix Alteration Spam"})
-
-    # Filter out duplicate strategies and sort
-    unique_options = {opt['name']: opt for opt in options}
-    sorted_options = sorted(unique_options.values(), key=lambda x: x['chance'], reverse=True)
-
-    return sorted_options[:5]
-
+def get_expected_attempts(p_success):
+    if p_success == 0: return float('inf')
+    return 1 / p_success
 
 def calculate_recombination_outcomes(desired_prefixes, max_prefixes, desired_suffixes, max_suffixes):
-    return find_best_crafting_options(desired_prefixes, max_prefixes, desired_suffixes, max_suffixes)
+    """
+    This function finds the best crafting plans to achieve the desired outcome.
+    A plan is a series of steps, where each step is a recombination.
+    The cost of a plan is measured in the expected number of recombinations.
+    """
+    plans = []
+
+    # --- Plans for 3 Prefixes ---
+    if desired_prefixes <= 3 <= max_prefixes:
+        # --- Plan 1: Exclusive Mod Strategy ---
+        # Step 1: Make a 2p item {A, B}
+        p_step1 = get_outcome_distribution(2).get(2, 0) # 0.33
+        attempts_step1 = get_expected_attempts(p_step1)
+        step1_desc = f"1. Create Item A (2 prefixes {{A, B}}):\n   - Combine a magic item {{A}} and a magic item {{B}}.\n   - Success Chance: {p_step1:.0%}. Expected Attempts: {attempts_step1:.1f}"
+
+        # Step 2: Final Combine
+        # Pool of 6p -> 72% for 3p result. 50% chance to force via exclusive suffix.
+        p_step2 = 0.72 * 0.5
+        attempts_step2 = get_expected_attempts(p_step2)
+        step2_desc = f"2. Final Combination:\n   - Prepare Item A with an exclusive prefix, and a 1-prefix item {{C}} with multimod + exclusive prefixes.\n   - Combine them. Success Chance: {p_step2:.1%}. Expected Attempts: {attempts_step2:.1f}"
+
+        total_attempts_exclusive = attempts_step1 + attempts_step2
+        explanation_exclusive = f"{step1_desc}\n\n{step2_desc}\n\nTotal Expected Attempts: ~{total_attempts_exclusive:.1f}"
+        plans.append({
+            "name": "3-Prefix Exclusive Mod Craft",
+            "chance": p_step2, # Chance of the final step
+            "cost": total_attempts_exclusive,
+            "explanation": explanation_exclusive
+        })
+
+        # --- Plan 2: Doubled Modifier Strategy ---
+        # Step 1: Make item {A, B} (same as above)
+        # Step 2: Make item {B, C}
+        p_step2_doubled = get_outcome_distribution(2).get(2, 0) # 0.33
+        attempts_step2_doubled = get_expected_attempts(p_step2_doubled)
+        step2_desc_doubled = f"2. Create Item B (2 prefixes {{B, C}}):\n   - Combine a magic item {{B}} and a magic item {{C}}.\n   - Success Chance: {p_step2_doubled:.0%}. Expected Attempts: {attempts_step2_doubled:.1f}"
+
+        # Step 3: Final Combine
+        # Pool of 4p {A,B,B,C}. 31% for 3p. 100% chance of correct mods (as per user feedback).
+        p_step3_doubled = get_outcome_distribution(4).get(3, 0) # 0.31
+        attempts_step3_doubled = get_expected_attempts(p_step3_doubled)
+        step3_desc_doubled = f"3. Final Combination:\n   - Combine item {{A, B}} and item {{B, C}}.\n   - Success Chance: {p_step3_doubled:.1%}. Expected Attempts: {attempts_step3_doubled:.1f}"
+
+        total_attempts_doubled = attempts_step1 + attempts_step2_doubled + attempts_step3_doubled
+        explanation_doubled = f"{step1_desc}\n\n{step2_desc_doubled}\n\n{step3_desc_doubled}\n\nTotal Expected Attempts: ~{total_attempts_doubled:.1f}"
+        plans.append({
+            "name": "3-Prefix Doubled Modifier Craft",
+            "chance": p_step3_doubled,
+            "cost": total_attempts_doubled,
+            "explanation": explanation_doubled
+        })
+
+        # --- Plan 3: 2p + 1p Strategy ---
+        # Step 1: Make item {A, B} (same as above)
+        # Step 2: Final combine
+        p_step2_2p1p = get_outcome_distribution(3).get(3, 0) # 0.10
+        attempts_step2_2p1p = get_expected_attempts(p_step2_2p1p)
+        step2_desc_2p1p = f"2. Final Combination:\n   - Combine item {{A, B}} and a magic item {{C}}.\n   - Success Chance: {p_step2_2p1p:.1%}. Expected Attempts: {attempts_step2_2p1p:.1f}"
+
+        total_attempts_2p1p = attempts_step1 + attempts_step2_2p1p
+        explanation_2p1p = f"{step1_desc}\n\n{step2_desc_2p1p}\n\nTotal Expected Attempts: ~{total_attempts_2p1p:.1f}"
+        plans.append({
+            "name": "3-Prefix 2p+1p Craft",
+            "chance": p_step2_2p1p,
+            "cost": total_attempts_2p1p,
+            "explanation": explanation_2p1p
+        })
+
+    # Sort plans by their total cost (expected attempts)
+    sorted_plans = sorted(plans, key=lambda x: x['cost'])
+
+    # Rename 'chance' to 'final_step_chance' for clarity in the output
+    for plan in sorted_plans:
+        plan['final_step_chance'] = plan.pop('chance')
+
+    return sorted_plans[:5]
