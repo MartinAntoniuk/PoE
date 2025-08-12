@@ -35,7 +35,7 @@ class App(tk.Tk):
         calculate_button = ttk.Button(self, text="Calculate Best Options", command=self.calculate)
         calculate_button.pack(pady=10)
 
-        results_frame = ttk.LabelFrame(self, text="Top Crafting Plans (sorted by lowest cost)")
+        results_frame = ttk.LabelFrame(self, text="Top 5 Crafting Plans (sorted by lowest recombination cost)")
         results_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         self.results_text = tk.Text(results_frame, height=20, width=90, wrap="word")
@@ -59,7 +59,7 @@ class App(tk.Tk):
             return
 
         self.results_text.delete("1.0", tk.END)
-        self.results_text.insert(tk.END, "Calculating...")
+        self.results_text.insert(tk.END, "Calculating optimal crafting plans...")
         self.update_idletasks()
 
         try:
@@ -74,9 +74,9 @@ class App(tk.Tk):
 
             for i, plan in enumerate(plans):
                 self.results_text.insert(tk.END, f"--- Plan {i+1}: {plan['name']} ---\n")
-                self.results_text.insert(tk.END, f"Total Expected Attempts: {plan['cost']:.1f}\n")
-                self.results_text.insert(tk.END, f"Final Step Success Chance: {plan['final_step_chance']:.1%}\n\n")
-                self.results_text.insert(tk.END, f"{plan['explanation']}\n\n")
+                self.results_text.insert(tk.END, f"Total Expected Recombinations: {plan['cost']:.1f}\n")
+                self.results_text.insert(tk.END, f"Total Exclusive Mods Needed: {plan['exclusive_cost']}\n\n")
+                self.results_text.insert(tk.END, f"**Full Plan:**\n{plan['explanation']}\n\n")
 
         except Exception as e:
             self.results_text.delete("1.0", tk.END)
