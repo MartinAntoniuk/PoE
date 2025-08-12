@@ -1,8 +1,7 @@
 import math
 from itertools import product
 
-# Table 1 from the Reddit post: Conditional final affix number distributions.
-# Format: {total_affixes: {final_mods: chance}}
+# Probability table remains the same
 PROBABILITY_TABLE = {
     1: {0: 0.41, 1: 0.59, 2: 0.0, 3: 0.0},
     2: {0: 0.0, 1: 0.67, 2: 0.33, 3: 0.0},
@@ -13,124 +12,86 @@ PROBABILITY_TABLE = {
 }
 
 def get_outcome_distribution(total_affixes):
-    """
-    Returns the probability distribution for the number of final affixes
-    given the total number of affixes in the pool.
-    """
     if total_affixes > 6:
-        total_affixes = 6 # The table caps at 6
+        total_affixes = 6
     return PROBABILITY_TABLE.get(total_affixes, {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0})
 
 def nCr_exact(n, r):
-    """
-    Exact combination formula to avoid floating point issues.
-    """
-    if r < 0 or r > n:
-        return 0
+    if r < 0 or r > n: return 0
     return math.factorial(n) // math.factorial(r) // math.factorial(n - r)
 
-
-def find_best_crafting_options(desired_prefixes, max_suffixes):
-    """
-    Finds the top 5 best crafting options.
-    """
+def find_best_crafting_options(desired_prefixes, max_prefixes, desired_suffixes, max_suffixes):
     options = []
 
-    # Strategy 1: The "Exclusive Mod Shenanigans" strategy. This is almost always the best.
+    # --- Strategy for 3 Prefixes ---
+    if desired_prefixes <= 3 <= max_prefixes:
+        explanation = (
+            "Strategy: Exclusive Mod Crafting for 3 Prefixes\n\n"
+            "This is the most reliable method to create a 3-prefix item.\n\n"
+            "**Step 1: Create Item A (2 desired prefixes)**\n"
+            "   - Combine two magic items, one with each of your first two desired prefixes.\n"
+            "   - This has a 33% chance to result in a 2-prefix item. Expected attempts: ~3.\n\n"
+            "**Step 2: Get Item B (1 desired prefix)**\n"
+            "   - This is a magic item with your third desired prefix.\n\n"
+            "**Step 3: Prepare for Final Combine**\n"
+            "   - On Item A (2p): Add an exclusive crafted prefix (e.g., 'Chosen').\n"
+            "   - On Item B (1p): Add 'Multimod', then two exclusive crafted prefixes.\n"
+            "   - Add an exclusive suffix (e.g., Aspect) to one item for control.\n\n"
+            "**Step 4: The Final Combination**\n"
+            "   - Combine Item A (now 3p) and Item B (now 3p/1s+).\n"
+            "   - Total prefix pool is 6, giving a 72% chance of a 3-prefix result.\n"
+            "   - The exclusive suffix gives a 50% chance to force the outcome, guaranteeing your 3 desired prefixes.\n"
+            "   - Final success chance for this step: 0.5 * 0.72 = 36%."
+        )
+        options.append({"chance": 0.36, "explanation": explanation, "name": "3-Prefix Exclusive Mod Craft"})
+
+    # --- Strategy for 2 Prefixes ---
+    if desired_prefixes <= 2 <= max_prefixes:
+        explanation = (
+            "Strategy: Simple Combine for 2 Prefixes\n\n"
+            "This is the most straightforward way to get a 2-prefix item.\n\n"
+            "**Step 1: Get two 1-prefix items.**\n"
+            "   - Get two magic items, each with one of your desired prefixes.\n\n"
+            "**Step 2: Combine them.**\n"
+            "   - Combine the two 1p/0s items.\n"
+            "   - The total prefix pool is 2. This gives a 33% chance of a 2-prefix result.\n"
+            "   - Since there are only two prefixes in the pool, you are guaranteed to get the ones you want if the 2-prefix result occurs.\n\n"
+            "**Suffix Outcome:**\n"
+            "   - If you start with 0 suffixes on both items, the resulting item will also have 0 suffixes."
+        )
+        options.append({"chance": 0.33, "explanation": explanation, "name": "2-Prefix Simple Combine"})
+
+    # --- Strategy for 1 Prefix ---
+    if desired_prefixes <= 1 <= max_prefixes:
+        explanation = (
+            "Strategy: Use a 1-Prefix Item\n\n"
+            "To get a 1-prefix item, you don't need to use a recombinator. You can simply:\n\n"
+            "1. Use an Orb of Transmutation on a normal (white) item to make it magic.\n"
+            "2. If it has a prefix you want, you are done. If it has a suffix, you can use an Orb of Augmentation to add a prefix.\n"
+            "3. Use Alteration Orbs until you hit the prefix you want.\n\n"
+            "This process has a very high chance of success and is very cheap."
+        )
+        options.append({"chance": 0.99, "explanation": explanation, "name": "1-Prefix Alteration Spam"})
+
+    # --- Fallback / Comparison Strategy ---
+    explanation_simple = (
+        "Strategy: Simple 3p+3p Combine (Low Success)\n\n"
+        "This is a less effective but simpler method to illustrate the power of exclusive mods.\n\n"
+        "**Step 1: Create two 3-prefix items.** (This is very difficult).\n"
+        "**Step 2: Combine them.**\n"
+        "   - Total prefix pool is 6. Chance of 3 prefixes is 72%.\n"
+        "   - Chance of selecting your 3 desired prefixes from the pool of 6 is 1/nCr(6,3) = 5%.\n"
+        "   - Total chance: 0.72 * 0.05 = 3.6%."
+    )
     if desired_prefixes == 3:
-        total_p_shenanigans = 6
-        prob_p_dist = get_outcome_distribution(total_p_shenanigans)
-        chance_3p = prob_p_dist.get(3, 0.0)
-        final_chance = 0.5 * chance_3p
+      options.append({"chance": 0.036, "explanation": explanation_simple, "name": "3-Prefix Naive Combine"})
 
-        options.append({
-            "chance": final_chance,
-            "explanation": (
-                f"Strategy: Exclusive Mod Shenanigans for 3 Prefixes (Highest Success Chance)\n\n"
-                "This is the most effective but also most complex strategy. It involves using crafted 'exclusive' mods to guarantee the outcome.\n\n"
-                "**How to do it:**\n"
-                "1. **Item A (2 Prefixes):** Get an item with two of your desired prefixes. Craft a 'named' exclusive prefix.\n"
-                "2. **Item B (1 Prefix):** Get an item with your third desired prefix. Craft 'Can have multiple crafted modifiers' and then two more 'named' exclusive prefixes.\n"
-                "3. **Suffixes:** On both items, have the suffixes you want, but also add an exclusive suffix to one of them (e.g., an Aspect craft).\n\n"
-                "**Why it works:**\n"
-                "This creates a large pool of prefixes (3 desired + 3 exclusive = 6 total), which gives a ~72% chance to result in an item with 3 prefixes. By having an exclusive suffix, there's a 50% chance the recombinator processes suffixes first. If it picks the exclusive suffix, all other exclusive mods are removed from the pool. This leaves only your 3 desired prefixes, which are then guaranteed.\n\n"
-                f"Calculation: 0.5 (chance to process suffixes first) * {chance_3p:.2%} (chance for 3 prefixes from 6 total) = {final_chance:.2%}"
-            )
-        })
+    # Filter out duplicate strategies and sort
+    unique_options = {opt['name']: opt for opt in options}
+    sorted_options = sorted(unique_options.values(), key=lambda x: x['chance'], reverse=True)
 
-    if desired_prefixes == 2:
-        # For 2 prefixes, we can aim for a pool of 4 or 5 total prefixes.
-        # Let's use 5 total prefixes: 2 desired, 3 exclusive.
-        total_p_shenanigans = 5
-        prob_p_dist = get_outcome_distribution(total_p_shenanigans)
-        chance_2p = prob_p_dist.get(2, 0.0)
-        # We also need to account for the chance of getting 3 prefixes, which would be a failure.
-        # In the shenanigans setup, if we get 3 prefixes, one of them must be one of our desired ones,
-        # so it's not a total failure, but let's stick to the main goal.
-
-        final_chance = 0.5 * chance_2p
-
-        options.append({
-            "chance": final_chance,
-            "explanation": (
-                f"Strategy: Exclusive Mod Shenanigans for 2 Prefixes\n\n"
-                "This strategy uses exclusive mods to improve the odds of getting your two desired prefixes.\n\n"
-                "**How to do it:**\n"
-                "1. **Item A (1 Prefix):** Get an item with one of your desired prefixes. Craft a 'named' exclusive prefix.\n"
-                "2. **Item B (1 Prefix):** Get an item with your other desired prefix. Craft 'Can have multiple crafted modifiers' and then two more 'named' exclusive prefixes.\n"
-                "3. **Suffixes:** Add an exclusive suffix to one of the items.\n\n"
-                "**Why it works:**\n"
-                "This creates a pool of 5 prefixes (2 desired + 3 exclusive). This gives a {chance_2p:.2%} chance of a 2-prefix outcome. The exclusive suffix trick gives a 50% chance to force the outcome to only consider your desired prefixes.\n\n"
-                f"Calculation: 0.5 * {chance_2p:.2%} = {final_chance:.2%}"
-            )
-        })
-
-
-    # Strategy 2: Simpler, non-exclusive mod strategies.
-    for p1, s1, p2, s2 in product(range(1, 4), range(0, 4), range(1, 4), range(0, 4)):
-        if p1 + p2 > 6 or s1 + s2 > 6:
-            continue
-
-        # We need to have the desired prefixes on the input items.
-        if p1 + p2 < desired_prefixes:
-            continue
-
-        total_p = p1 + p2
-        total_s = s1 + s2
-
-        p_dist = get_outcome_distribution(total_p)
-        s_dist = get_outcome_distribution(total_s)
-
-        prob_p = p_dist.get(desired_prefixes, 0.0)
-        prob_s = sum(s_dist.get(s, 0.0) for s in range(max_suffixes + 1))
-
-        mod_selection_chance = nCr_exact(p1, p1) * nCr_exact(p2, desired_prefixes - p1) / nCr_exact(total_p, desired_prefixes) if total_p >= desired_prefixes and p1 <= desired_prefixes else 0
-
-        final_prob = prob_p * prob_s * mod_selection_chance
-
-        if final_prob > 0.001: # Filter out very low probability options
-            options.append({
-                "chance": final_prob,
-                "explanation": (
-                    f"Strategy: Simple Combination\n\n"
-                    f"Item 1: {p1} prefixes, {s1} suffixes\n"
-                    f"Item 2: {p2} prefixes, {s2} suffixes\n\n"
-                    f"This assumes you have your {desired_prefixes} desired prefixes distributed between the two items.\n"
-                    f"Total prefixes in pool: {total_p}. Total suffixes: {total_s}\n"
-                    f"Chance to get {desired_prefixes} prefixes: {prob_p:.2%}\n"
-                    f"Chance to get <= {max_suffixes} suffixes: {prob_s:.2%}\n"
-                    f"Chance to select the correct prefixes (heuristic): {mod_selection_chance:.2%}\n\n"
-                    "This is a more straightforward approach but generally has a lower chance of success because it relies on luck to pick the correct modifiers from the pool."
-                )
-            })
-
-    # Sort options by chance and return the top 5
-    sorted_options = sorted(options, key=lambda x: x['chance'], reverse=True)
     return sorted_options[:5]
 
 
-def calculate_recombination_outcomes(desired_prefixes, max_suffixes):
-    """
-    This function now calls the new find_best_crafting_options function.
-    """
-    return find_best_crafting_options(desired_prefixes, max_suffixes)
+def calculate_recombination_outcomes(desired_prefixes, max_prefixes, desired_suffixes, max_suffixes):
+    return find_best_crafting_options(desired_prefixes, max_prefixes, desired_suffixes, max_suffixes)
