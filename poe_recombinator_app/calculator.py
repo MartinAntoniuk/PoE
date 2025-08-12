@@ -64,6 +64,23 @@ def find_best_crafting_options(desired_prefixes, max_prefixes, desired_suffixes,
         )
         options.append({"chance": 0.155, "explanation": explanation_doubled, "name": "3-Prefix Doubled Modifier Craft"})
 
+        # 2p + 1p Strategy
+        explanation_2p1p = (
+            "Strategy: 2-Prefix + 1-Prefix Combine\n\n"
+            "A simpler, but less effective, method than doubling modifiers.\n\n"
+            "**Step 1: Create Item A (prefixes A, B)**\n"
+            "   - Combine a magic item with prefix {A} and another with prefix {B}.\n"
+            "   - 33% chance for a 2-prefix item {A, B}. Expected attempts: ~3.\n\n"
+            "**Step 2: Get Item B (prefix C)**\n"
+            "   - Get a magic item with only prefix {C}.\n\n"
+            "**Step 3: The Final Combination**\n"
+            "   - Combine Item A {A, B} and Item B {C}.\n"
+            "   - Total prefix pool is 3: {A, B, C}.\n"
+            "   - Chance of a 3-prefix result: 10%.\n"
+            "   - If you get 3 prefixes, they are guaranteed to be {A, B, C}."
+        )
+        options.append({"chance": 0.10, "explanation": explanation_2p1p, "name": "3-Prefix 2p+1p Craft"})
+
         # Naive Strategy for comparison
         explanation_simple = (
             "Strategy: Simple 3p+3p Combine (Low Success)\n\n"
