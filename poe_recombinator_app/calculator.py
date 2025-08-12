@@ -37,7 +37,7 @@ class CostMapGenerator:
         return self.cost_map.get((p, s), (float('inf'), "N/A"))
 
     def build_cost_map(self):
-        self.cost_map[(0, 0)] = (0, "Base item.")
+        self.cost_map[(0, 0)] = (0, "Start with a normal item.")
         self.cost_map[(1, 0)] = (1, "Start with a 1-prefix magic item.")
         self.cost_map[(0, 1)] = (1, "Start with a 1-suffix magic item.")
         for p in range(4):
@@ -73,7 +73,12 @@ class CostMapGenerator:
 
                 if expected_cost < best_cost:
                     best_cost = expected_cost
-                    best_path = f"To make a {p_target}p/{s_target}s item, combine ({p1}p/{s1}s) and ({p2}p/{s2}s)."
+                    path1_indented = "   " + path1.replace("\n", "\n   ")
+                    path2_indented = "   " + path2.replace("\n", "\n   ")
+                    best_path = (f"To make this item, combine a ({p1}p/{s1}s) and a ({p2}p/{s2}s) item.\n"
+                                 f"  - Path for the ({p1}p/{s1}s) item:\n{path1_indented}\n"
+                                 f"  - Path for the ({p2}p/{s2}s) item:\n{path2_indented}")
+
         self.cost_map[(p_target, s_target)] = (best_cost, best_path)
 
 def calculate_recombination_outcomes(desired_p, desired_s):
@@ -88,18 +93,23 @@ def calculate_recombination_outcomes(desired_p, desired_s):
     # --- Strategy 2 & 3: Advanced strategies for 3 prefixes ---
     if desired_p == 3:
         # Doubled Mod
-        cost2p, _ = cost_gen.get_cost(2, desired_s)
+        cost2p, path2p = cost_gen.get_cost(2, desired_s)
         if cost2p != float('inf'):
             p_succ = 0.31
-            total_cost = (cost2p * 2) / p_succ # Simplified formula for this specific case
-            plans.append({"name": f"Doubled Prefix Strategy for 3p/{desired_s}s", "base_item_cost": total_cost, "exclusive_cost": 0, "explanation": f"Create two {2}p/{desired_s}s items and combine them."})
+            total_cost = (cost2p * 2) / p_succ
+            explanation = f"1. Create two {2}p/{desired_s}s items, sharing one prefix.\n   (Est. ingredient cost: {cost2p*2:.1f} base items).\n   - Path for one ingredient:\n     {path2p.replace(chr(10), chr(10)+'     ')}\n2. Combine them. Final step success chance is {p_succ:.0%}."
+            plans.append({"name": f"Doubled Prefix Strategy for 3p/{desired_s}s", "base_item_cost": total_cost, "exclusive_cost": 0, "explanation": explanation})
 
         # Exclusive Mods
-        cost1p, _ = cost_gen.get_cost(1, desired_s)
+        cost1p, path1p = cost_gen.get_cost(1, desired_s)
         if cost2p != float('inf') and cost1p != float('inf'):
             p_succ = 0.36
-            total_cost = (cost2p + cost1p) / p_succ # Simplified formula, as exclusives aren't recycled
-            plans.append({"name": f"Exclusive Mod Strategy for 3p/{desired_s}s", "base_item_cost": total_cost, "exclusive_cost": 3, "explanation": f"Create a {2}p/{desired_s}s and a {1}p/{desired_s}s item, add 3 exclusive mods, and combine."})
+            step_cost_e = 3
+            total_cost = (cost2p + cost1p) / p_succ
+            explanation = (f"1. Create a {2}p/{desired_s}s item (Est. cost: {cost2p:.1f} base items).\n   - Path:\n     {path2p.replace(chr(10), chr(10)+'     ')}\n"
+                           f"2. Create a {1}p/{desired_s}s item (Est. cost: {cost1p:.1f} base items).\n   - Path:\n     {path1p.replace(chr(10), chr(10)+'     ')}\n"
+                           f"3. Add {step_cost_e} exclusive mods and combine. Final step success chance is {p_succ:.0%}.")
+            plans.append({"name": f"Exclusive Mod Strategy for 3p/{desired_s}s", "base_item_cost": total_cost, "exclusive_cost": step_cost_e, "explanation": explanation})
 
     unique_plans = {plan['name']: plan for plan in plans}
     sorted_plans = sorted(unique_plans.values(), key=lambda x: x['base_item_cost'])
