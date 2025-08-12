@@ -73,11 +73,19 @@ class CostMapGenerator:
 
                 if expected_cost < best_cost:
                     best_cost = expected_cost
-                    path1_indented = "   " + path1.replace("\n", "\n   ")
-                    path2_indented = "   " + path2.replace("\n", "\n   ")
-                    best_path = (f"To make this item, combine a ({p1}p/{s1}s) and a ({p2}p/{s2}s) item.\n"
-                                 f"  - Path for the ({p1}p/{s1}s) item:\n{path1_indented}\n"
-                                 f"  - Path for the ({p2}p/{s2}s) item:\n{path2_indented}")
+                    step_text = f"Combine ({p1}p/{s1}s) and ({p2}p/{s2}s) (Cost: {1/p_succ:.1f} attempts, {p_succ:.1%} chance)."
+
+                    # Don't explain how to get base 1-mod items.
+                    path1_text = ""
+                    if cost1 > 1:
+                        path1_text = f"  - Path for the ({p1}p/{s1}s) item:\n" + "   " + path1.replace("\n", "\n   ")
+                    path2_text = ""
+                    if cost2 > 1:
+                         path2_text = f"  - Path for the ({p2}p/{s2}s) item:\n" + "   " + path2.replace("\n", "\n   ")
+
+                    # Clean up newlines
+                    full_path = "\n".join(filter(None, [path1_text, path2_text, step_text]))
+                    best_path = full_path
 
         self.cost_map[(p_target, s_target)] = (best_cost, best_path)
 
@@ -97,7 +105,8 @@ def calculate_recombination_outcomes(desired_p, desired_s):
         if cost2p != float('inf'):
             p_succ = 0.31
             total_cost = (cost2p * 2) / p_succ
-            explanation = f"1. Create two {2}p/{desired_s}s items, sharing one prefix.\n   (Est. ingredient cost: {cost2p*2:.1f} base items).\n   - Path for one ingredient:\n     {path2p.replace(chr(10), chr(10)+'     ')}\n2. Combine them. Final step success chance is {p_succ:.0%}."
+            path2p_text = f"   - Path for one ingredient:\n     {path2p.replace(chr(10), chr(10)+'     ')}" if cost2p > 1 else ""
+            explanation = f"1. Create two {2}p/{desired_s}s items, sharing one prefix.\n{path2p_text}\n2. Combine them. (Final Step Cost: {1/p_succ:.1f} attempts, {p_succ:.1%} chance)"
             plans.append({"name": f"Doubled Prefix Strategy for 3p/{desired_s}s", "base_item_cost": total_cost, "exclusive_cost": 0, "explanation": explanation})
 
         # Exclusive Mods
@@ -106,9 +115,11 @@ def calculate_recombination_outcomes(desired_p, desired_s):
             p_succ = 0.36
             step_cost_e = 3
             total_cost = (cost2p + cost1p) / p_succ
-            explanation = (f"1. Create a {2}p/{desired_s}s item (Est. cost: {cost2p:.1f} base items).\n   - Path:\n     {path2p.replace(chr(10), chr(10)+'     ')}\n"
-                           f"2. Create a {1}p/{desired_s}s item (Est. cost: {cost1p:.1f} base items).\n   - Path:\n     {path1p.replace(chr(10), chr(10)+'     ')}\n"
-                           f"3. Add {step_cost_e} exclusive mods and combine. Final step success chance is {p_succ:.0%}.")
+            path2p_text = f"   - Path:\n     {path2p.replace(chr(10), chr(10)+'     ')}" if cost2p > 1 else ""
+            path1p_text = f"   - Path:\n     {path1p.replace(chr(10), chr(10)+'     ')}" if cost1p > 1 else ""
+            explanation = (f"1. Create a {2}p/{desired_s}s item (Est. cost: {cost2p:.1f} base items).\n{path2p_text}\n"
+                           f"2. Create a {1}p/{desired_s}s item (Est. cost: {cost1p:.1f} base items).\n{path1p_text}\n"
+                           f"3. Add {step_cost_e} exclusive mods and combine. (Final Step Cost: {1/p_succ:.1f} attempts, {p_succ:.1%} chance)")
             plans.append({"name": f"Exclusive Mod Strategy for 3p/{desired_s}s", "base_item_cost": total_cost, "exclusive_cost": step_cost_e, "explanation": explanation})
 
     unique_plans = {plan['name']: plan for plan in plans}
