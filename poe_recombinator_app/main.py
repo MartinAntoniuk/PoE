@@ -20,17 +20,9 @@ class App(tk.Tk):
         self.desired_prefixes = tk.IntVar(value=3)
         ttk.Entry(input_frame, textvariable=self.desired_prefixes).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
-        ttk.Label(input_frame, text="Maximum Prefixes:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
-        self.max_prefixes = tk.IntVar(value=3)
-        ttk.Entry(input_frame, textvariable=self.max_prefixes).grid(row=0, column=3, padx=5, pady=5, sticky="ew")
-
-        ttk.Label(input_frame, text="Desired Suffixes:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(input_frame, text="Desired Suffixes:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
         self.desired_suffixes = tk.IntVar(value=0)
-        ttk.Entry(input_frame, textvariable=self.desired_suffixes).grid(row=1, column=1, padx=5, pady=5, sticky="ew")
-
-        ttk.Label(input_frame, text="Maximum Suffixes:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
-        self.max_suffixes = tk.IntVar(value=0)
-        ttk.Entry(input_frame, textvariable=self.max_suffixes).grid(row=1, column=3, padx=5, pady=5, sticky="ew")
+        ttk.Entry(input_frame, textvariable=self.desired_suffixes).grid(row=0, column=3, padx=5, pady=5, sticky="ew")
 
         calculate_button = ttk.Button(self, text="Calculate Best Options", command=self.calculate)
         calculate_button.pack(pady=10)
@@ -47,15 +39,11 @@ class App(tk.Tk):
 
     def calculate(self):
         desired_prefixes = self.desired_prefixes.get()
-        max_prefixes = self.max_prefixes.get()
         desired_suffixes = self.desired_suffixes.get()
-        max_suffixes = self.max_suffixes.get()
 
-        if not (0 <= desired_prefixes <= 3 and desired_prefixes <= max_prefixes <= 3 and
-                0 <= desired_suffixes <= 3 and desired_suffixes <= max_suffixes <= 3):
+        if not (0 <= desired_prefixes <= 3 and 0 <= desired_suffixes <= 3):
             self.results_text.delete("1.0", tk.END)
-            self.results_text.insert(tk.END, "Error: Please enter valid numbers for affixes (0-3).\n"
-                                             "Desired should not be greater than Maximum.")
+            self.results_text.insert(tk.END, "Error: Please enter valid numbers for affixes (0-3).")
             return
 
         self.results_text.delete("1.0", tk.END)
@@ -63,8 +51,9 @@ class App(tk.Tk):
         self.update_idletasks()
 
         try:
+            # This call will be updated in the next step to match the new signature
             plans = calculate_recombination_outcomes(
-                desired_prefixes, max_prefixes, desired_suffixes, max_suffixes
+                desired_prefixes, desired_suffixes
             )
             self.results_text.delete("1.0", tk.END)
 

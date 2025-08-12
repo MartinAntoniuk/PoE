@@ -2,13 +2,25 @@ import math
 from itertools import product
 
 PROBABILITY_TABLE = {
+    # Special case for 1p/1s combine, from guide: 33% for 1p1s, 33% for 1p, 33% for 1s.
+    (1,1): { (1,1): 0.33, (1,0): 0.33, (0,1): 0.33 },
     1: {1: 1.0}, 2: {1: 0.67, 2: 0.33}, 3: {1: 0.39, 2: 0.52, 3: 0.10},
     4: {1: 0.11, 2: 0.59, 3: 0.31}, 5: {2: 0.43, 3: 0.57}, 6: {2: 0.28, 3: 0.72},
 }
 
-def get_outcome_distribution(total_affixes):
+def get_outcome_distribution(total_p, total_s):
+    if total_p == 1 and total_s == 1:
+        return PROBABILITY_TABLE[(1,1)]
+    # For simplicity, we only model one affix type at a time for the standard table
+    total_affixes = total_p or total_s
     if total_affixes > 6: total_affixes = 6
-    return PROBABILITY_TABLE.get(total_affixes, {})
+    dist = PROBABILITY_TABLE.get(total_affixes, {})
+    # Return distribution in (p,s) format
+    if total_p > 0:
+        return {(p, 0): chance for p, chance in dist.items()}
+    else:
+        return {(0, s): chance for s, chance in dist.items()}
+
 
 def nCr(n, r):
     if r < 0 or r > n: return 0
@@ -49,17 +61,15 @@ class CostMapGenerator:
                 if total_p > 6 or total_s > 6 or (total_p==0 and total_s==0): continue
 
                 p_success = 0
-                # Special case from the guide for 1p+1s
                 if total_p == 1 and total_s == 1:
                     if p_target == 1 and s_target == 1:
                         p_success = 0.33
                 else:
-                    # Independent calculation for all other cases
-                    p_dist = get_outcome_distribution(total_p)
-                    s_dist = get_outcome_distribution(total_s)
+                    p_dist = get_outcome_distribution(total_p, 0)
+                    s_dist = get_outcome_distribution(0, total_s)
 
-                    prob_p_num = p_dist.get(p_target, 0) if p_target > 0 else (1 - sum(p_dist.values()))
-                    prob_s_num = s_dist.get(s_target, 0) if s_target > 0 else (1 - sum(s_dist.values()))
+                    prob_p_num = p_dist.get((p_target, 0), 0) if p_target > 0 else (1 - sum(p_dist.values()))
+                    prob_s_num = s_dist.get((0, s_target), 0) if s_target > 0 else (1 - sum(s_dist.values()))
                     prob_num_affixes = prob_p_num * prob_s_num
 
                     ways_p = nCr(total_p, p_target)
@@ -76,42 +86,45 @@ class CostMapGenerator:
 
         self.cost_map[(p_target, s_target)] = (best_r_cost, best_path)
 
-def calculate_recombination_outcomes(desired_p, max_p, desired_s, max_s):
+def calculate_recombination_outcomes(desired_p, desired_s):
     """The Strategy Presenter."""
     cost_gen = CostMapGenerator()
     plans = []
 
-    for p_goal in range(desired_p, max_p + 1):
-        for s_goal in range(desired_s, max_s + 1):
-            if p_goal == 0 and s_goal == 0: continue
+    # Hardcode max values to 3, as we removed them from the UI.
+    max_p = 3
+    max_s = 3
 
-            # --- Strategy 1: Find Cheapest Standard Path from Planner ---
-            cost_r, path = cost_gen.get_cost(p_goal, s_goal)
-            if cost_r != float('inf') and cost_r > 0:
-                explanation = f"The dynamic planner found the cheapest standard path is to:\n{path}"
-                plans.append({"name": f"Standard Plan for {p_goal}p/{s_goal}s", "cost": cost_r, "exclusive_cost": 0, "explanation": explanation})
+    # The presenter now only generates plans for the exact desired outcome.
+    p_goal, s_goal = desired_p, desired_s
 
-            # --- Strategy 2: Doubled Modifier ---
-            if p_goal == 3:
-                cost2p_r, _ = cost_gen.get_cost(2, s_goal)
-                if cost2p_r != float('inf'):
-                    p_success = 0.31
-                    step_cost_r = 1 / p_success
-                    total_r = cost2p_r * 2 + step_cost_r
-                    explanation = f"1. Create two {2}p/{s_goal}s items, sharing one prefix (Est. cost for both: {cost2p_r*2:.1f} attempts).\n2. Combine them. (Final Step Cost: {step_cost_r:.1f} attempts)"
-                    plans.append({"name": f"Doubled Prefix Strategy for {p_goal}p/{s_goal}s", "cost": total_r, "exclusive_cost": 0, "explanation": explanation})
+    # --- Strategy 1: Find Cheapest Standard Path from Planner ---
+    cost_r, path = cost_gen.get_cost(p_goal, s_goal)
+    if cost_r != float('inf') and cost_r > 0:
+        explanation = f"The dynamic planner found the cheapest standard path is to:\n{path}"
+        plans.append({"name": f"Standard Plan for {p_goal}p/{s_goal}s", "cost": cost_r, "exclusive_cost": 0, "explanation": explanation})
 
-            # --- Strategy 3: Exclusive Mods ---
-            if p_goal == 3:
-                cost2p_r, _ = cost_gen.get_cost(2, s_goal)
-                cost1p_r, _ = cost_gen.get_cost(1, s_goal)
-                if cost2p_r != float('inf') and cost1p_r != float('inf'):
-                    p_success = 0.36
-                    step_cost_r = 1 / p_success
-                    step_cost_e = 3
-                    total_r = cost2p_r + cost1p_r + step_cost_r
-                    explanation = f"1. Create a {2}p/{s_goal}s item (Est. cost: {cost2p_r:.1f} attempts).\n2. Create a {1}p/{s_goal}s item (Est. cost: {cost1p_r:.1f} attempts).\n3. Add {step_cost_e} exclusive mods and combine. (Final Step Cost: {step_cost_r:.1f} attempts)"
-                    plans.append({"name": f"Exclusive Mod Strategy for {p_goal}p/{s_goal}s", "cost": total_r, "exclusive_cost": step_cost_e, "explanation": explanation})
+    # --- Strategy 2: Doubled Modifier ---
+    if p_goal == 3:
+        cost2p_r, _ = cost_gen.get_cost(2, s_goal)
+        if cost2p_r != float('inf'):
+            p_success = 0.31
+            step_cost_r = 1 / p_success
+            total_r = cost2p_r * 2 + step_cost_r
+            explanation = f"1. Create two {2}p/{s_goal}s items, sharing one prefix (Est. cost for both: {cost2p_r*2:.1f} attempts).\n2. Combine them. (Final Step Cost: {step_cost_r:.1f} attempts)"
+            plans.append({"name": f"Doubled Prefix Strategy for {p_goal}p/{s_goal}s", "cost": total_r, "exclusive_cost": 0, "explanation": explanation})
+
+    # --- Strategy 3: Exclusive Mods ---
+    if p_goal == 3:
+        cost2p_r, _ = cost_gen.get_cost(2, s_goal)
+        cost1p_r, _ = cost_gen.get_cost(1, s_goal)
+        if cost2p_r != float('inf') and cost1p_r != float('inf'):
+            p_success = 0.36
+            step_cost_r = 1 / p_success
+            step_cost_e = 3
+            total_r = cost2p_r + cost1p_r + step_cost_r
+            explanation = f"1. Create a {2}p/{s_goal}s item (Est. cost: {cost2p_r:.1f} attempts).\n2. Create a {1}p/{s_goal}s item (Est. cost: {cost1p_r:.1f} attempts).\n3. Add {step_cost_e} exclusive mods and combine. (Final Step Cost: {step_cost_r:.1f} attempts)"
+            plans.append({"name": f"Exclusive Mod Strategy for {p_goal}p/{s_goal}s", "cost": total_r, "exclusive_cost": step_cost_e, "explanation": explanation})
 
     unique_plans = {plan['name']: plan for plan in plans}
     sorted_plans = sorted(unique_plans.values(), key=lambda x: x['cost'])
